@@ -178,3 +178,172 @@ ggplot() +
   theme_classic()+
   labs(x="year", y="Evapotranspiration (in)")
 
+
+#Homework----
+#Q1 AND Q2
+# transform CO2 (given in prompt)
+ghg$trans.co2 <- 1/(ghg$co2 + 1000)
+
+# log transform
+ghg$log.age <- log(ghg$age)
+ghg$log.DIP <- log(ghg$DIP + 1)
+ghg$log.precip <- log(ghg$precipitation)
+
+# binary variable
+ghg$BorealV <- ifelse(ghg$Region == "Boreal",1,0)
+
+# regression model (same structure as tutorial)
+mod.co2 <- lm(trans.co2 ~ airTemp +
+                log.age + mean.depth +
+                log.DIP +
+                log.precip + BorealV,
+              data = ghg)
+
+summary(mod.co2)
+
+# check assumptions
+res <- rstandard(mod.co2)
+fit <- fitted.values(mod.co2)
+
+# QQ plot
+qqnorm(res, pch=19, col="grey50")
+qqline(res)
+
+# normality test
+shapiro.test(res)
+
+# residual plot
+plot(fit, res, pch=19, col="grey50")
+abline(h=0)
+
+# check multicollinearity
+reg.data <- data.frame(ghg$airTemp,
+                       ghg$log.age,
+                       ghg$mean.depth,
+                       ghg$log.DIP,
+                       ghg$log.precip)
+
+chart.Correlation(reg.data, histogram=TRUE, pch=19)
+
+# stepwise model selection
+ols_step_forward_aic(mod.co2)
+
+
+#Q3
+# Almonds
+almond <- ETdat %>%
+  filter(crop == "Almonds") %>%
+  group_by(date) %>%
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE))
+
+almond_ts <- ts(almond$ET.in, start=c(2016,1), frequency=12)
+almond_dec <- decompose(almond_ts)
+plot(almond_dec)
+
+
+# Pistachios
+pistachio <- ETdat %>%
+  filter(crop == "Pistachios") %>%
+  group_by(date) %>%
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE))
+
+pistachio_ts <- ts(pistachio$ET.in, start=c(2016,1), frequency=12)
+pistachio_dec <- decompose(pistachio_ts)
+plot(pistachio_dec)
+
+
+# Fallow/Idle Cropland
+fallow <- ETdat %>%
+  filter(crop == "Fallow/Idle Cropland") %>%
+  group_by(date) %>%
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE))
+
+fallow_ts <- ts(fallow$ET.in, start=c(2016,1), frequency=12)
+fallow_dec <- decompose(fallow_ts)
+plot(fallow_dec)
+
+
+# Corn
+corn <- ETdat %>%
+  filter(crop == "Corn") %>%
+  group_by(date) %>%
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE))
+
+corn_ts <- ts(corn$ET.in, start=c(2016,1), frequency=12)
+corn_dec <- decompose(corn_ts)
+plot(corn_dec)
+
+
+# Table Grapes
+grapes <- ETdat %>%
+  filter(crop == "Grapes (Table/Raisin)") %>%
+  group_by(date) %>%
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE))
+
+grapes_ts <- ts(grapes$ET.in, start=c(2016,1), frequency=12)
+grapes_dec <- decompose(grapes_ts)
+plot(grapes_dec)
+
+#Q4
+
+# PISTACHIOS
+
+pistachio <- ETdat %>%
+  filter(crop == "Pistachios") %>%
+  group_by(date) %>%
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE))
+
+pistachio_ts <- ts(pistachio$ET.in, start=c(2016,1), frequency=12)
+
+p_y <- na.omit(pistachio_ts)
+
+model_p <- arima(p_y, order=c(4,0,0))
+
+newP <- forecast(model_p)
+
+newPF <- data.frame(newP)
+
+years <- c(rep(2021,4),rep(2022,12), rep(2023,8))
+month <- c(seq(9,12),seq(1,12), seq(1,8))
+newPF$dateF <- ymd(paste(years,"/",month,"/",1))
+
+ggplot() +
+  geom_line(data = pistachio, aes(x = ymd(date), y = ET.in))+
+  xlim(ymd(pistachio$date[1]), newPF$dateF[24])+
+  geom_line(data = newPF, aes(x = dateF, y = Point.Forecast), col="red") +
+  geom_ribbon(data=newPF, 
+              aes(x=dateF,ymin=Lo.95,ymax=Hi.95),
+              fill=rgb(0.5,0.5,0.5,0.5))+
+  theme_classic()+
+  labs(title="Pistachios Forecast", x="year", y="Evapotranspiration (in)")
+
+# FALLOW
+
+fallow <- ETdat %>%
+  filter(crop == "Fallow/Idle Cropland") %>%
+  group_by(date) %>%
+  summarise(ET.in = mean(Ensemble.ET, na.rm=TRUE))
+
+fallow_ts <- ts(fallow$ET.in, start=c(2016,1), frequency=12)
+
+f_y <- na.omit(fallow_ts)
+
+model_f <- arima(f_y, order=c(4,0,0))
+
+newF <- forecast(model_f)
+
+newFF <- data.frame(newF)
+newFF$dateF <- ymd(paste(years,"/",month,"/",1))
+
+ggplot() +
+  geom_line(data = fallow, aes(x = ymd(date), y = ET.in))+
+  xlim(ymd(fallow$date[1]), newFF$dateF[24])+
+  geom_line(data = newFF, aes(x = dateF, y = Point.Forecast), col="red") +
+  geom_ribbon(data=newFF, 
+              aes(x=dateF,ymin=Lo.95,ymax=Hi.95),
+              fill=rgb(0.5,0.5,0.5,0.5))+
+  theme_classic()+
+  labs(title="Fallow Forecast", x="year", y="Evapotranspiration (in)")
+
+
+
